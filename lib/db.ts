@@ -107,6 +107,20 @@ function createTables(database: Database) {
   database.run(`CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date)`);
   database.run(`CREATE INDEX IF NOT EXISTS idx_sales_date ON sales(date)`);
   database.run(`CREATE INDEX IF NOT EXISTS idx_customers_name ON customers(name)`);
+
+  // Migrations for existing databases
+  migrateSchema(database);
+}
+
+function migrateSchema(database: Database) {
+  // Add `notified` column to appointments if missing
+  try {
+    database.run(`ALTER TABLE appointments ADD COLUMN notified INTEGER DEFAULT 0`);
+  } catch {}
+  // Add `status` column to appointments if missing (for very old DBs)
+  try {
+    database.run(`ALTER TABLE appointments ADD COLUMN status TEXT DEFAULT 'scheduled'`);
+  } catch {}
 }
 
 export function saveDb() {
