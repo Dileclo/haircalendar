@@ -2,9 +2,6 @@ import initSqlJs, { Database } from 'sql.js';
 import fs from 'fs';
 import path from 'path';
 
-// Auto-start notification scheduler on server
-import './notificationScheduler';
-
 const DB_PATH = path.join(process.cwd(), 'hail.db');
 
 let db: Database | null = null;

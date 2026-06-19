@@ -3,12 +3,6 @@ import { sendPushNotification } from './pushSender';
 
 let intervalId: ReturnType<typeof setInterval> | null = null;
 
-// Auto-start on server import
-if (typeof window === 'undefined') {
-  // Delay to avoid blocking startup
-  setTimeout(() => startNotificationScheduler(), 5000);
-}
-
 export function startNotificationScheduler() {
   if (intervalId) return;
   console.log('[Notifications] Scheduler started');
