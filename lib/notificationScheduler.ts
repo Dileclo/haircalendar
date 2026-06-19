@@ -1,0 +1,92 @@
+import { getDb, queryAll, execute } from './db';
+import { sendPushNotification } from './pushSender';
+
+let intervalId: ReturnType<typeof setInterval> | null = null;
+
+// Auto-start on server import
+if (typeof window === 'undefined') {
+  // Delay to avoid blocking startup
+  setTimeout(() => startNotificationScheduler(), 5000);
+}
+
+export function startNotificationScheduler() {
+  if (intervalId) return;
+  console.log('[Notifications] Scheduler started');
+
+  const check = async () => {
+    try {
+      const db = await getDb();
+
+      // Appointments starting in 55-65 minutes, not yet notified
+      const rows = queryAll(
+        `SELECT a.id, a.customer_name, a.service, a.start_time, a.price,
+                ps.endpoint, ps.p256dh, ps.auth, ps.id as sub_id
+         FROM appointments a
+         CROSS JOIN push_subscriptions ps
+         WHERE a.status = 'scheduled'
+         AND a.notified = 0
+         AND a.start_time BETWEEN datetime('now', 'localtime', '+55 minutes')
+                              AND datetime('now', 'localtime', '+65 minutes')`
+      );
+
+      if (rows.length === 0) return;
+
+      // Group by appointment to avoid duplicate notifications
+      const byAppt = new Map<number, any>();
+      for (const row of rows) {
+        if (!byAppt.has(row.id)) {
+          byAppt.set(row.id, {
+            id: row.id,
+            customer_name: row.customer_name,
+            service: row.service,
+            start_time: row.start_time,
+            price: row.price,
+            subscriptions: [] as any[],
+          });
+        }
+        byAppt.get(row.id)!.subscriptions.push({
+          endpoint: row.endpoint,
+          keys: { p256dh: row.p256dh, auth: row.auth },
+          sub_id: row.sub_id,
+        });
+      }
+
+      // Send notifications
+      for (const [, appt] of byAppt) {
+        const title = `🔔 ${appt.customer_name}`;
+        const time = appt.start_time?.substring(11, 16) || '';
+        const body = `${appt.service} · ${appt.price?.toLocaleString()} ₽ · ${time}`;
+
+        for (const sub of appt.subscriptions) {
+          const ok = await sendPushNotification(
+            { endpoint: sub.endpoint, keys: sub.keys },
+            title,
+            body,
+            '/calendar'
+          );
+          if (!ok) {
+            // Remove expired subscription
+            execute('DELETE FROM push_subscriptions WHERE id = ?', [sub.sub_id]);
+          }
+        }
+
+        // Mark as notified
+        execute('UPDATE appointments SET notified = 1 WHERE id = ?', [appt.id]);
+      }
+    } catch (err) {
+      // Silently fail — the DB might not be ready yet on first start
+    }
+  };
+
+  // Run every 60 seconds
+  intervalId = setInterval(check, 60_000);
+  // Also run once immediately
+  check();
+}
+
+export function stopNotificationScheduler() {
+  if (intervalId) {
+    clearInterval(intervalId);
+    intervalId = null;
+  }
+}

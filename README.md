@@ -1,36 +1,75 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Hail — Веб-приложение для парикмахера
 
-## Getting Started
+Современное веб-приложение для управления записями, клиентами и финансами парикмахера.
+Стек: **Next.js 16 + TypeScript + SQLite + Recharts + Glassmorphism**
 
-First, run the development server:
+## Быстрый старт
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install                # Установка зависимостей
+npx tsx scripts/migrate.ts # Миграция BSON → SQLite (если нет hail.db)
+npm run dev                # Запуск (http://localhost:3000)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Для доступа с iPhone/iPad: `http://[IP-компьютера]:3000`
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Структура
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+hairsapp/
+├── app/                        # Next.js App Router
+│   ├── layout.tsx              # Glass фон, TabBar, PWA-метатеги
+│   ├── page.tsx                # Дашборд (метрики, записи на сегодня)
+│   ├── globals.css             # Glassmorphism + iOS дизайн-система
+│   ├── calendar/page.tsx       # Календарь (День / 3 дня / Неделя / Список)
+│   ├── clients/
+│   │   ├── page.tsx            # Клиенты с поиском
+│   │   └── [id]/page.tsx       # Карточка клиента + история
+│   ├── expenses/page.tsx       # Расходы + Продажи (табы)
+│   ├── statistics/page.tsx     # Графики Recharts
+│   └── api/                    # REST API (SQLite)
+├── components/                 # UI компоненты (GlassCard, Modal, ...)
+│   └── charts/                 # Revenue, Services, Clients, Comparison
+├── lib/db.ts                   # SQLite через sql.js
+├── scripts/migrate.ts          # Миграция BSON → SQLite
+├── public/                     # PWA манифест + sql-wasm.wasm
+├── hail.db                     # База данных SQLite (4 таблицы)
+└── package.json
+```
 
-## Learn More
+## База данных (SQLite)
 
-To learn more about Next.js, take a look at the following resources:
+| Таблица | Записей | Поля |
+|---------|---------|------|
+| customers | 328 | name, phone, status |
+| appointments | 2 926 | customer_id, service, price, start_time, end_time, color |
+| expenses | 331 | name, amount, date, receipt |
+| sales | 49 | product, amount, date, receipt |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## API
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+GET/POST    /api/customers
+GET/PUT/DEL /api/customers/[id]
+GET/POST    /api/appointments
+GET         /api/appointments/today
+GET         /api/appointments/upcoming
+GET/POST    /api/expenses
+GET/POST    /api/sales
+GET         /api/statistics/overview
+GET         /api/statistics/revenue?period=month
+GET         /api/statistics/services
+GET         /api/statistics/clients
+GET         /api/statistics/comparison
+```
 
-## Deploy on Vercel
+## Перенос на другой компьютер
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Скопировать папку `hairsapp` целиком + папку `hairsalon` (BSON-файлы). На новом месте:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+cd hairsapp
+npm install
+npx tsx scripts/migrate.ts   # если hail.db нет
+npm run dev
+```
