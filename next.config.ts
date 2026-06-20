@@ -1,10 +1,5 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
-  output: 'standalone',
-  outputFileTracingIncludes: {
-    '/*': ['./hail.db', './public/**/*', './node_modules/sql.js/dist/**/*.wasm'],
-  },
-};
+const nextConfig: NextConfig = {};
 
 export default nextConfig;
