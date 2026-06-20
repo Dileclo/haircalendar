@@ -11,31 +11,40 @@ let db: Database | null = null;
 export async function getDb(): Promise<Database> {
   if (db) return db;
 
-  const SQL = await initSqlJs({
-    locateFile: (file: string) => {
-      if (typeof window !== 'undefined') return `/${file}`;
-      // Try multiple paths for Docker compatibility
-      const candidates = [
-        path.join(process.cwd(), 'node_modules', 'sql.js', 'dist', file),
-        path.join(process.cwd(), 'public', file),
-      ];
-      for (const p of candidates) {
-        try { if (fs.existsSync(p)) return p; } catch {}
-      }
-      return candidates[0]; // fallback
-    },
-  });
+  try {
+    console.log('[DB] Initializing sql.js...');
+    const SQL = await initSqlJs({
+      locateFile: (file: string) => {
+        if (typeof window !== 'undefined') return `/${file}`;
+        const candidates = [
+          path.join(process.cwd(), 'node_modules', 'sql.js', 'dist', file),
+          path.join(process.cwd(), 'public', file),
+        ];
+        for (const p of candidates) {
+          try { if (fs.existsSync(p)) { console.log('[DB] WASM at', p); return p; } } catch {}
+        }
+        console.error('[DB] WASM not found at', candidates);
+        return candidates[0];
+      },
+    });
+    console.log('[DB] sql.js OK');
 
-  if (fs.existsSync(DB_PATH)) {
-    const buffer = fs.readFileSync(DB_PATH);
-    db = new SQL.Database(buffer);
-  } else {
-    db = new SQL.Database();
-    createTables(db);
-    saveDb();
+    if (fs.existsSync(DB_PATH)) {
+      console.log('[DB] Opening', DB_PATH);
+      const buffer = fs.readFileSync(DB_PATH);
+      db = new SQL.Database(buffer);
+    } else {
+      console.log('[DB] Creating new DB at', DB_PATH);
+      db = new SQL.Database();
+      createTables(db);
+      saveDb();
+    }
+    console.log('[DB] Ready');
+    return db;
+  } catch(e) {
+    console.error('[DB] CRASH:', e);
+    throw e;
   }
-
-  return db;
 }
 
 function createTables(database: Database) {
