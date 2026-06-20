@@ -19,8 +19,8 @@ export function startNotificationScheduler() {
          CROSS JOIN push_subscriptions ps
          WHERE a.status = 'scheduled'
          AND a.notified = 0
-         AND REPLACE(a.start_time, 'T', ' ') BETWEEN datetime('now', 'localtime', '+55 minutes')
-                                                  AND datetime('now', 'localtime', '+65 minutes')`
+         AND REPLACE(a.start_time, 'T', ' ') BETWEEN datetime('now', 'localtime', '+45 minutes')
+                                                  AND datetime('now', 'localtime', '+75 minutes')`
       );
 
       console.log(`[Scheduler] Found ${rows.length} notification(s) to send`);
