@@ -1,7 +1,6 @@
 export async function register() {
-  // Scheduler disabled for now — enable when DB migration is stable
-  // if (process.env.NEXT_RUNTIME === 'nodejs') {
-  //   const { startNotificationScheduler } = await import('./lib/notificationScheduler');
-  //   startNotificationScheduler();
-  // }
+  if (process.env.NEXT_RUNTIME === 'nodejs') {
+    const { warmup } = await import('./lib/warmup');
+    await warmup();
+  }
 }
