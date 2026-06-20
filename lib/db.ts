@@ -3,7 +3,8 @@ import fs from 'fs';
 import path from 'path';
 
 // Static path for Turbopack tracing compatibility
-const DB_PATH = path.resolve(process.cwd(), 'hail.db');
+// @ts-ignore — static path for Turbopack traceability
+const DB_PATH = path.join(process.cwd(), 'hail.db');
 
 let db: Database | null = null;
 
