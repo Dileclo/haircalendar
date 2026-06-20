@@ -16,9 +16,11 @@ export async function getDb(): Promise<Database> {
     const SQL = await initSqlJs({
       locateFile: (file: string) => {
         if (typeof window !== 'undefined') return `/${file}`;
+        const cwd = process.cwd();
         const candidates = [
-          path.join(process.cwd(), 'node_modules', 'sql.js', 'dist', file),
-          path.join(process.cwd(), 'public', file),
+          path.join(cwd, 'public', file),
+          path.join(cwd, 'node_modules', 'sql.js', 'dist', file),
+          path.join(cwd, '.next', 'standalone', 'node_modules', 'sql.js', 'dist', file),
         ];
         for (const p of candidates) {
           try { if (fs.existsSync(p)) { console.log('[DB] WASM at', p); return p; } } catch {}
