@@ -23,6 +23,7 @@ export function startNotificationScheduler() {
                               AND datetime('now', 'localtime', '+65 minutes')`
       );
 
+      console.log(`[Scheduler] Found ${rows.length} notification(s) to send`);
       if (rows.length === 0) return;
 
       // Group by appointment to avoid duplicate notifications
@@ -52,23 +53,24 @@ export function startNotificationScheduler() {
         const body = `${appt.service} · ${appt.price?.toLocaleString()} ₽ · ${time}`;
 
         for (const sub of appt.subscriptions) {
+          console.log(`[Scheduler] Sending push to ${appt.customer_name}: ${title}`);
           const ok = await sendPushNotification(
             { endpoint: sub.endpoint, keys: sub.keys },
             title,
             body,
             '/calendar'
           );
+          console.log(`[Scheduler] Push result: ${ok ? 'OK' : 'FAILED'}`);
           if (!ok) {
-            // Remove expired subscription
             execute('DELETE FROM push_subscriptions WHERE id = ?', [sub.sub_id]);
           }
         }
 
-        // Mark as notified
+        console.log(`[Scheduler] Marking appointment ${appt.id} as notified`);
         execute('UPDATE appointments SET notified = 1 WHERE id = ?', [appt.id]);
       }
     } catch (err) {
-      // Silently fail — the DB might not be ready yet on first start
+      console.error('[Scheduler] Error:', err);
     }
   };
 
