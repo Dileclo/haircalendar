@@ -3,7 +3,7 @@ const { parse } = require('url');
 const next = require('next');
 
 const port = parseInt(process.env.PORT || '3000', 10);
-const dev = process.env.NODE_ENV !== 'production';
+const dev = false; // force production on App Platform
 const app = next({ dev, port });
 const handle = app.getRequestHandler();
 
