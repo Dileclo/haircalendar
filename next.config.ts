@@ -1,8 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  turbopack: {
-    root: process.cwd(),
+  outputFileTracingIncludes: {
+    '/*': ['./hail.db', './node_modules/sql.js/dist/**/*', './public/sql-wasm.wasm'],
   },
 };
 

@@ -2,7 +2,8 @@ import initSqlJs, { Database } from 'sql.js';
 import fs from 'fs';
 import path from 'path';
 
-const DB_PATH = path.join(process.cwd(), 'hail.db');
+// Static path for Turbopack tracing compatibility
+const DB_PATH = path.resolve(process.cwd(), 'hail.db');
 
 let db: Database | null = null;
 
