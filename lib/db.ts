@@ -11,13 +11,16 @@ export async function getDb(): Promise<Database> {
 
   const SQL = await initSqlJs({
     locateFile: (file: string) => {
-      // In dev/prod, serve from /_next/static or public
       if (typeof window !== 'undefined') return `/${file}`;
-      // On server, resolve from node_modules
-      const p = path.join(process.cwd(), 'node_modules', 'sql.js', 'dist', file);
-      if (fs.existsSync(p)) return p;
-      // Fallback to public directory
-      return path.join(process.cwd(), 'public', file);
+      // Try multiple paths for Docker compatibility
+      const candidates = [
+        path.join(process.cwd(), 'node_modules', 'sql.js', 'dist', file),
+        path.join(process.cwd(), 'public', file),
+      ];
+      for (const p of candidates) {
+        try { if (fs.existsSync(p)) return p; } catch {}
+      }
+      return candidates[0]; // fallback
     },
   });
 
