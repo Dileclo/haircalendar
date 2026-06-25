@@ -6,6 +6,7 @@ import { Autocomplete } from './Autocomplete';
 import { Modal } from './Modal';
 import { formatPhone } from '@/lib/phone';
 import { apiCall } from '@/lib/apiHelpers';
+import { searchLocalClients, searchLocalServices } from '@/lib/offlineData';
 
 interface AppointmentFormProps {
   appointment?: any;
@@ -29,24 +30,44 @@ export function AppointmentForm({ appointment, onClose, onSaved }: AppointmentFo
 
   const isEdit = !!appointment?.id;
 
-  // Client search (stable reference — wrapped in useCallback)
+  // Client search — API first, IndexedDB fallback when offline
   const fetchClients = useCallback(async (query: string): Promise<any[]> => {
-    const params = new URLSearchParams();
-    if (query.trim()) params.set('q', query.trim());
-    const res = await fetch(`/api/customers?${params.toString()}`);
-    const data = await res.json();
-    return data.success ? data.data : [];
+    try {
+      const params = new URLSearchParams();
+      if (query.trim()) params.set('q', query.trim());
+      const res = await fetch(`/api/customers?${params.toString()}`);
+      const data = await res.json();
+      if (data.success) return data.data;
+    } catch {}
+    // Offline fallback — search locally cached clients
+    try {
+      return await searchLocalClients(query);
+    } catch {
+      return [];
+    }
   }, []);
 
-  // Service search (stable reference — wrapped in useCallback)
+  // Service search — API first, IndexedDB fallback when offline
   const fetchServices = useCallback(async (query: string): Promise<any[]> => {
-    const res = await fetch('/api/statistics/services');
-    const data = await res.json();
-    if (!data.success) return [];
-    const all: any[] = data.data;
-    if (!query.trim()) return all;
-    const q = query.toLowerCase();
-    return all.filter((s: any) => s.service.toLowerCase().includes(q));
+    try {
+      const res = await fetch('/api/statistics/services');
+      const data = await res.json();
+      if (data.success) {
+        const all: any[] = data.data;
+        if (!query.trim()) return all;
+        const q = query.toLowerCase();
+        return all.filter((s: any) => s.service.toLowerCase().includes(q));
+      }
+    } catch {}
+    // Offline fallback — search locally cached services
+    try {
+      const all = await searchLocalServices(query);
+      if (!query.trim()) return all;
+      const q = query.toLowerCase();
+      return all.filter((s: any) => s.service?.toLowerCase().includes(q));
+    } catch {
+      return [];
+    }
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {

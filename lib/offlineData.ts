@@ -197,22 +197,36 @@ export async function hasLocalData(): Promise<boolean> {
 /** Pull full client & service lists from server and cache locally.
  *  Call this periodically when online. */
 export async function hydrateOfflineData(): Promise<void> {
-  if (typeof navigator === 'undefined' || !navigator.onLine) return;
+  if (typeof navigator === 'undefined' || !navigator.onLine) {
+    console.log('[Hydrate] Navigator offline or SSR — skipping');
+    return;
+  }
   try {
     // Fetch all clients
+    console.log('[Hydrate] Fetching /api/customers...');
     const clientsRes = await fetch('/api/customers');
     const clientsData = await clientsRes.json();
-    if (clientsData.success) {
+    if (clientsData.success && Array.isArray(clientsData.data)) {
+      console.log(`[Hydrate] Got ${clientsData.data.length} clients, caching...`);
       await cacheClients(clientsData.data);
+      console.log('[Hydrate] Clients cached OK');
+    } else {
+      console.warn('[Hydrate] Clients API returned error or no data:', clientsData);
     }
 
-    // Fetch service stats (for autocomplete)
+    // Fetch service stats
+    console.log('[Hydrate] Fetching /api/statistics/services...');
     const svcRes = await fetch('/api/statistics/services');
     const svcData = await svcRes.json();
-    if (svcData.success) {
+    if (svcData.success && Array.isArray(svcData.data)) {
+      console.log(`[Hydrate] Got ${svcData.data.length} services, caching...`);
       await cacheServices(svcData.data);
+      console.log('[Hydrate] Services cached OK');
+    } else {
+      console.warn('[Hydrate] Services API returned error or no data:', svcData);
     }
-  } catch {
-    // Silently fail — will retry next time
+  } catch (err) {
+    console.error('[Hydrate] Error:', err);
+    throw err; // Let caller handle retry
   }
 }
