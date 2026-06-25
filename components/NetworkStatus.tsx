@@ -1,12 +1,15 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { getPendingCount, syncMutations } from '@/lib/offlineQueue';
 
 export function NetworkStatus() {
-  const [online, setOnline] = useState(true);
+  const [online, setOnline] = useState(() =>
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  );
   const [pending, setPending] = useState(0);
   const [syncing, setSyncing] = useState(false);
+  const swListenerRef = useRef(false);
 
   const updatePending = useCallback(() => {
     getPendingCount().then(setPending).catch(() => {});
@@ -28,10 +31,14 @@ export function NetworkStatus() {
         updatePending();
       }
     };
-    navigator.serviceWorker?.addEventListener('message', handleMessage);
+    if (!swListenerRef.current && navigator.serviceWorker) {
+      swListenerRef.current = true;
+      navigator.serviceWorker.addEventListener('message', handleMessage);
+    }
 
     // Auto-sync when coming back online
     const autoSync = async () => {
+      if (!navigator.onLine) return;
       const count = await getPendingCount();
       if (count > 0) {
         setSyncing(true);
@@ -40,13 +47,30 @@ export function NetworkStatus() {
         updatePending();
       }
     };
-    if (online) autoSync();
+    autoSync();
 
     return () => {
       window.removeEventListener('online', goOnline);
       window.removeEventListener('offline', goOffline);
-      navigator.serviceWorker?.removeEventListener('message', handleMessage);
+      if (navigator.serviceWorker && swListenerRef.current) {
+        navigator.serviceWorker.removeEventListener('message', handleMessage);
+        swListenerRef.current = false;
+      }
     };
+  }, [updatePending]);
+
+  // Re-sync when coming online
+  useEffect(() => {
+    if (!online) return;
+    (async () => {
+      const count = await getPendingCount();
+      if (count > 0) {
+        setSyncing(true);
+        await syncMutations();
+        setSyncing(false);
+        updatePending();
+      }
+    })();
   }, [online, updatePending]);
 
   const handleSync = async () => {
@@ -75,7 +99,6 @@ export function NetworkStatus() {
         justifyContent: 'center',
         gap: 12,
       }}
-      className="no-scrollbar"
     >
       {!online ? (
         <div style={{

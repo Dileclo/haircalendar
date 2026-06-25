@@ -5,6 +5,7 @@ import { ThemeProvider } from '@/components/ThemeProvider';
 import { NetworkStatus } from '@/components/NetworkStatus';
 import { ServiceWorkerRegistration } from '@/components/ServiceWorkerRegistration';
 import { PushSubscribe } from '@/components/PushSubscribe';
+import { DataHydration } from '@/components/DataHydration';
 
 export const metadata: Metadata = {
   title: 'HairCalendar — Парикмахерская',
@@ -42,6 +43,7 @@ export default function RootLayout({
           <ServiceWorkerRegistration />
           <NetworkStatus />
           <PushSubscribe />
+          <DataHydration />
           <main className="flex-1 pb-20 overflow-x-hidden">
             {children}
           </main>

@@ -37,6 +37,7 @@ export function Autocomplete<T>({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mounted = useRef(false);
+  const cachedItems = useRef<T[]>([]);
 
   const updatePosition = useCallback(() => {
     if (!inputRef.current) return;
@@ -59,24 +60,50 @@ export function Autocomplete<T>({
       debounceRef.current = setTimeout(async () => {
         setLoading(true);
         try {
+          // Try online fetch first
           const results = await fetchItems(query);
           setItems(results);
+          // Cache results for offline use
+          if (results.length > 0) {
+            cachedItems.current = results;
+          }
           setOpen(true);
           updatePosition();
-        } catch { setItems([]); }
+        } catch {
+          // Offline — fall back to filtering cached items
+          if (cachedItems.current.length > 0) {
+            const q = query.toLowerCase();
+            const filtered = cachedItems.current.filter((item: any) => {
+              const name = item.name || item.service || '';
+              const phone = item.phone || '';
+              return name.toLowerCase().includes(q) || phone.toLowerCase().includes(q);
+            });
+            setItems(filtered as T[]);
+          } else {
+            setItems([]);
+          }
+          setOpen(true);
+          updatePosition();
+        }
         setLoading(false);
       }, debounceMs);
     } else {
       // Silent pre-fetch (no debounce needed)
-      fetchItems(query).then(setItems).catch(() => {});
+      fetchItems(query).then(results => {
+        setItems(results);
+        if (results.length > 0) cachedItems.current = results;
+      }).catch(() => {});
     }
   }, [fetchItems, debounceMs, updatePosition]);
 
-  // On mount: silent pre-fetch
+  // On mount: silent pre-fetch all items
   useEffect(() => {
     if (!mounted.current) {
       mounted.current = true;
-      fetchItems(value).then(setItems).catch(() => {});
+      fetchItems('').then(results => {
+        setItems(results);
+        if (results.length > 0) cachedItems.current = results;
+      }).catch(() => {});
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -117,14 +144,18 @@ export function Autocomplete<T>({
 
   const handleFocus = () => {
     updatePosition();
-    // Show existing items if available and value is non-empty
     if (items.length > 0) {
       setOpen(true);
     } else if (value.trim()) {
       doFetch(value, true);
     } else {
-      // Empty value — fetch all
-      doFetch('', true);
+      // Empty value — try to show all cached items
+      if (cachedItems.current.length > 0) {
+        setItems(cachedItems.current as T[]);
+        setOpen(true);
+      } else {
+        doFetch('', true);
+      }
     }
   };
 

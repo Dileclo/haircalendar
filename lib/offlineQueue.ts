@@ -1,5 +1,7 @@
 'use client';
 
+import { clearOfflineData } from './offlineData';
+
 const DB_NAME = 'hail-offline';
 const STORE = 'mutations';
 const DB_VERSION = 1;
@@ -81,10 +83,16 @@ export async function clearAll(): Promise<void> {
   });
 }
 
-/** Replay all pending mutations, return array of failed IDs */
+/**
+ * Replay all pending mutations.
+ * After successful sync, clears offline data (clients cache + offline appointments)
+ * and dispatches a custom event so pages can refresh.
+ * Returns array of failed mutation IDs.
+ */
 export async function syncMutations(): Promise<number[]> {
   const mutations = await getPendingMutations();
   const failed: number[] = [];
+  let synced = 0;
 
   for (const m of mutations) {
     try {
@@ -96,11 +104,23 @@ export async function syncMutations(): Promise<number[]> {
       const data = await res.json();
       if (data.success) {
         await removeMutation(m.id!);
+        synced++;
       } else {
         failed.push(m.id!);
       }
     } catch {
       failed.push(m.id!);
+    }
+  }
+
+  // After successful sync, clear local offline data so it can be re-fetched fresh
+  if (synced > 0) {
+    try {
+      await clearOfflineData();
+    } catch {}
+    // Notify all pages to refresh their data
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('offline-sync-complete'));
     }
   }
 
